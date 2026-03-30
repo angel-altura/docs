@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Agents & Skills — A Simple Guide</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --accent: #6c5ce7;
+      --accent-light: #a29bfe;
+      --text: #e2e4e9;
+      --text-muted: #8b8fa3;
+      --success: #00cec9;
+      --warning: #fdcb6e;
+      --danger: #ff7675;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* --- Progress Bar --- */
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      transition: width 0.4s ease;
+      z-index: 100;
+    }
+
+    /* --- Navigation --- */
+    .nav {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 10px 20px;
+      border-radius: 40px;
+      z-index: 50;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .nav button {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .nav button:hover { background: var(--accent); border-color: var(--accent); }
+    .nav button:disabled { opacity: 0.3; cursor: default; background: none; border-color: var(--border); }
+    .nav .slide-counter { font-size: 14px; color: var(--text-muted); min-width: 60px; text-align: center; }
+
+    /* --- Dot Indicators --- */
+    .dots { display: flex; gap: 6px; }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .dot.active { background: var(--accent-light); transform: scale(1.3); }
+
+    /* --- Slides Container --- */
+    .slides-wrapper {
+      height: 100vh;
+      width: 100%;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 40px 100px;
+      opacity: 0;
+      transform: translateX(60px);
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+    }
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: all;
+    }
+    .slide.exit-left {
+      opacity: 0;
+      transform: translateX(-60px);
+    }
+
+    .slide-content {
+      max-width: 900px;
+      width: 100%;
+    }
+
+    /* --- Typography --- */
+    .slide-label {
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--accent-light);
+      margin-bottom: 12px;
+    }
+    .slide-content h1 {
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    .slide-content h1 .highlight {
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .slide-content h2 {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .slide-content p {
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .slide-content p strong { color: var(--text); }
+
+    /* --- Cards Grid --- */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-top: 24px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.3s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108,92,231,0.15); }
+    .card .icon { font-size: 28px; margin-bottom: 12px; }
+    .card h3 { font-size: 18px; margin-bottom: 8px; }
+    .card p { font-size: 14px; margin-bottom: 0; }
+
+    /* --- Analogy Box --- */
+    .analogy {
+      background: linear-gradient(135deg, rgba(108,92,231,0.12), rgba(162,155,254,0.08));
+      border-left: 3px solid var(--accent);
+      border-radius: 0 10px 10px 0;
+      padding: 20px 24px;
+      margin-top: 20px;
+    }
+    .analogy .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent-light); font-weight: 700; margin-bottom: 6px; }
+    .analogy p { margin-bottom: 0; color: var(--text); font-size: 16px; }
+
+    /* --- Comparison Table --- */
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+    .compare-col {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .compare-col.good { border-color: var(--success); }
+    .compare-col.bad { border-color: var(--danger); }
+    .compare-col h3 { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .compare-col ul { list-style: none; }
+    .compare-col ul li { font-size: 15px; color: var(--text-muted); padding: 6px 0; padding-left: 20px; position: relative; }
+    .compare-col ul li::before { content: ''; position: absolute; left: 0; top: 13px; width: 8px; height: 8px; border-radius: 50%; }
+    .compare-col.good ul li::before { background: var(--success); }
+    .compare-col.bad ul li::before { background: var(--danger); }
+
+    /* --- Code Block --- */
+    .code-block {
+      background: #12141c;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-top: 16px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 14px;
+      line-height: 1.8;
+      overflow-x: auto;
+      position: relative;
+    }
+    .code-block .lang-tag {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .code-block .comment { color: #636e88; }
+    .code-block .key { color: var(--accent-light); }
+    .code-block .string { color: var(--success); }
+    .code-block .heading { color: var(--warning); }
+
+    /* --- Steps --- */
+    .steps { counter-reset: step; margin-top: 24px; }
+    .step {
+      counter-increment: step;
+      display: flex;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: flex-start;
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-body h3 { font-size: 17px; margin-bottom: 4px; }
+    .step-body p { font-size: 14px; margin-bottom: 0; }
+    .step-body code {
+      background: rgba(108,92,231,0.15);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--accent-light);
+    }
+
+    /* --- Summary Table --- */
+    .summary-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 24px; }
+    .summary-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 1fr;
+      gap: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      align-items: center;
+    }
+    .summary-row.header {
+      background: none;
+      border: none;
+      padding-bottom: 4px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .summary-row .concept { font-weight: 700; color: var(--accent-light); font-size: 16px; }
+    .summary-row .desc { color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+
+    /* --- Keyboard hint --- */
+    .kb-hint {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+    kbd {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: inherit;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<div class="slides-wrapper" id="slidesWrapper">
+
+  <!-- SLIDE 0: Title -->
+  <div class="slide active" data-index="0">
+    <div class="slide-content" style="text-align:center;">
+      <div class="slide-label">A Simple Guide</div>
+      <h1>AI <span class="highlight">Agents</span> & <span class="highlight">Skills</span></h1>
+      <p>How they work, how to create them, and why they matter.</p>
+      <p style="font-size:14px; margin-top: 32px; color: var(--text-muted);">Use <kbd>&larr;</kbd> <kbd>&rarr;</kbd> arrow keys or click the buttons below to navigate.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 1: What Is an AI Agent? -->
+  <div class="slide" data-index="1">
+    <div class="slide-content">
+      <div class="slide-label">Concept</div>
+      <h2>What Is an AI Agent?</h2>
+      <p>An AI agent is a <strong>digital teammate</strong> that lives inside your development environment. It doesn't just answer questions — it <strong>takes action</strong>: reads files, runs commands, searches code, and makes changes.</p>
+      <p>These agents are built into the tools you already use. The concepts of <strong>rules</strong> and <strong>skills</strong> work across multiple AI coding tools — the patterns are the same, even if the setup differs slightly.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="icon">⚡</div>
+          <h3>Warp (Oz)</h3>
+          <p>AI agent built into the Warp terminal. Works alongside you in the command line — runs commands, edits files, and navigates your codebase.</p>
+        </div>
+        <div class="card">
+          <div class="icon">💬</div>
+          <h3>Claude (claude.ai)</h3>
+          <p>Anthropic's AI assistant. Use <strong>Projects</strong> to set persistent instructions and upload knowledge files — Claude's version of rules.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🤖</div>
+          <h3>Claude Code</h3>
+          <p>Agentic coding tool that runs in your terminal. Reads your codebase, makes edits, runs tests, and handles git workflows.</p>
+        </div>
+      </div>
+      <div class="analogy">
+        <div class="label">Analogy</div>
+        <p>Without an agent, AI is a <strong>consultant</strong> who gives advice but never touches the keyboard. With an agent, AI becomes a <strong>hands-on partner</strong> that does the work with you.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: Setting Up Your Agent -->
+  <div class="slide" data-index="2">
+    <div class="slide-content">
+      <div class="slide-label">Getting Started</div>
+      <h2>Setting Up Your Agent</h2>
+      <p>Each tool has its own setup, but they all follow the same idea: <strong>install the tool, then start talking to it.</strong></p>
+      <div class="cards">
+        <div class="card">
+          <div class="icon">⚡</div>
+          <h3>Warp (Oz)</h3>
+          <p><strong>1.</strong> Download <a href="https://www.warp.dev" style="color:var(--accent-light);">warp.dev</a> and open it.<br/>
+             <strong>2.</strong> Navigate to any Git repo — Warp auto-indexes your codebase.<br/>
+             <strong>3.</strong> Start typing in the prompt bar. Oz is already active.<br/>
+             <strong>4.</strong> Use <code>/init</code> to generate an <code>AGENTS.md</code> rules file for your project.</p>
+        </div>
+        <div class="card">
+          <div class="icon">💬</div>
+          <h3>Claude (claude.ai)</h3>
+          <p><strong>1.</strong> Go to <a href="https://claude.ai" style="color:var(--accent-light);">claude.ai</a> and sign in.<br/>
+             <strong>2.</strong> Create a <strong>Project</strong> — this is your workspace.<br/>
+             <strong>3.</strong> Add <strong>Project Instructions</strong> (your rules) and upload <strong>Knowledge files</strong>.<br/>
+             <strong>4.</strong> Start a conversation inside that Project — Claude follows your instructions automatically.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🤖</div>
+          <h3>Claude Code</h3>
+          <p><strong>1.</strong> Install: <code>npm install -g @anthropic-ai/claude-code</code><br/>
+             <strong>2.</strong> Run <code>claude</code> in any Git repo.<br/>
+             <strong>3.</strong> On first run, it scans your codebase automatically.<br/>
+             <strong>4.</strong> Ask it: <em>"Create a CLAUDE.md rules file for this project."</em></p>
+        </div>
+      </div>
+      <div class="analogy">
+        <div class="label">Key Point</div>
+        <p>You don't need to configure anything complex. <strong>Install the tool, open a project, and start talking.</strong> The agent is ready from the first prompt.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: What Are Rules? -->
+  <div class="slide" data-index="3">
+    <div class="slide-content">
+      <div class="slide-label">Foundation</div>
+      <h2>What Are Rules?</h2>
+      <p>Rules are <strong>persistent instructions</strong> that tell the agent <em>how to behave</em> — across every conversation, every task. Set them once; they apply always.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="icon">🌐</div>
+          <h3>Global Rules</h3>
+          <p>Apply everywhere, in every project. Example: <em>"Always use Python 3.11"</em> or <em>"Never push without permission."</em></p>
+        </div>
+        <div class="card">
+          <div class="icon">📁</div>
+          <h3>Project Rules</h3>
+          <p>Live inside a specific repo. Example: <em>"This project uses Django"</em> or <em>"Run pytest before committing."</em></p>
+        </div>
+      </div>
+      <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px;">
+          <p style="font-size:13px; margin-bottom:6px;"><strong>Warp (Oz)</strong></p>
+          <p style="font-size:13px; margin-bottom:4px;">Global: <code>Warp Drive → Rules</code></p>
+          <p style="font-size:13px; margin-bottom:0;">Project: <code>AGENTS.md</code> in repo root</p>
+        </div>
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px;">
+          <p style="font-size:13px; margin-bottom:6px;"><strong>Claude (claude.ai)</strong></p>
+          <p style="font-size:13px; margin-bottom:4px;">Project Instructions (set per Project)</p>
+          <p style="font-size:13px; margin-bottom:0;">Knowledge files uploaded to a Project</p>
+        </div>
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px;">
+          <p style="font-size:13px; margin-bottom:6px;"><strong>Claude Code</strong></p>
+          <p style="font-size:13px; margin-bottom:4px;">Global: <code>~/.claude/CLAUDE.md</code></p>
+          <p style="font-size:13px; margin-bottom:0;">Project: <code>CLAUDE.md</code> in repo root</p>
+        </div>
+      </div>
+      <div class="analogy">
+        <div class="label">Analogy</div>
+        <p>Rules are the <strong>house rules</strong> you give a new roommate. They don't need to ask every time — they just know.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: What Are Skills? -->
+  <div class="slide" data-index="4">
+    <div class="slide-content">
+      <div class="slide-label">Core Concept</div>
+      <h2>What Are Skills?</h2>
+      <p>Skills are <strong>reusable playbooks</strong> that teach the agent <em>how to do a specific task</em>. While rules say "always behave this way," skills say <strong>"when asked to do X, follow these exact steps."</strong></p>
+      <p>Each skill is a simple markdown file (<code>SKILL.md</code>) containing a name, description, and step-by-step instructions.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="icon">✉️</div>
+          <h3>Customer Email</h3>
+          <p>Writes emails in a professional, jargon-free tone for non-technical customers.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔍</div>
+          <h3>Tenant Lookup</h3>
+          <p>Walks through looking up tenant info from Django admin step by step.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🚀</div>
+          <h3>Create PR</h3>
+          <p>Builds a structured pull request description from branch context and Jira tickets.</p>
+        </div>
+      </div>
+      <div class="analogy">
+        <div class="label">Analogy</div>
+        <p>If rules are house rules, skills are <strong>recipes</strong>. Write the recipe once, and the agent can cook that dish any time you ask.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: Rules vs Skills -->
+  <div class="slide" data-index="5">
+    <div class="slide-content">
+      <div class="slide-label">Comparison</div>
+      <h2>Rules vs Skills — When to Use Which?</h2>
+      <p>They complement each other. Rules define the <strong>boundaries</strong>; skills define the <strong>workflows</strong>.</p>
+      <div class="compare">
+        <div class="compare-col good">
+          <h3>📐 Rules</h3>
+          <ul>
+            <li>Coding standards & preferences</li>
+            <li>Behavior constraints ("never do X")</li>
+            <li>Project conventions</li>
+            <li>Communication style</li>
+            <li>Always active, no invocation needed</li>
+          </ul>
+        </div>
+        <div class="compare-col good">
+          <h3>⚡ Skills</h3>
+          <ul>
+            <li>Multi-step workflows</li>
+            <li>Repeatable procedures</li>
+            <li>Domain-specific playbooks</li>
+            <li>Can include scripts & templates</li>
+            <li>Invoked on demand or auto-detected</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: How to Create Rules (via prompting) -->
+  <div class="slide" data-index="6">
+    <div class="slide-content">
+      <div class="slide-label">How-To</div>
+      <h2>How to Create Rules</h2>
+      <p>You don't need to write config files by hand. <strong>Just ask the agent to do it for you.</strong></p>
+      <div class="cards">
+        <div class="card">
+          <div class="icon">⚡</div>
+          <h3>In Warp</h3>
+          <p>Type <code>/init</code> to auto-generate an <code>AGENTS.md</code> for your project. Or ask:</p>
+          <p style="font-style:italic; color:var(--accent-light); font-size:13px; margin-bottom:0;">"Add a rule that says: always use Python 3.11 and never push to remote without asking."</p>
+        </div>
+        <div class="card">
+          <div class="icon">💬</div>
+          <h3>In Claude (claude.ai)</h3>
+          <p>Open a <strong>Project</strong>, click <strong>Project Instructions</strong>, and type your guidelines in plain English. No special format needed.</p>
+          <p style="font-style:italic; color:var(--accent-light); font-size:13px; margin-bottom:0;">"Always respond in a professional but friendly tone. Avoid technical jargon."</p>
+        </div>
+        <div class="card">
+          <div class="icon">🤖</div>
+          <h3>In Claude Code</h3>
+          <p>Just ask it directly in your terminal:</p>
+          <p style="font-style:italic; color:var(--accent-light); font-size:13px; margin-bottom:0;">"Create a CLAUDE.md file for this project with rules for our Django codebase."</p>
+        </div>
+      </div>
+      <div class="analogy">
+        <div class="label">Tip</div>
+        <p>Write rules like you're onboarding a new teammate. Plain language works best — no special syntax required.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: How to Create a Skill (via prompting) -->
+  <div class="slide" data-index="7">
+    <div class="slide-content">
+      <div class="slide-label">How-To</div>
+      <h2>How to Create a Skill</h2>
+      <p>The easiest way? <strong>Ask the agent to create the skill for you.</strong> Describe the workflow you want automated, and the agent writes the skill file.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="icon">⚡</div>
+          <h3>Prompt Warp</h3>
+          <p style="font-style:italic; color:var(--accent-light); font-size:13px;">"Create a new skill called 'customer-email' that writes professional, jargon-free emails to customers. Save it in .agents/skills/."</p>
+          <p style="font-size:13px; margin-bottom:0;">Warp creates the folder, writes the <code>SKILL.md</code>, and it's ready to use immediately.</p>
+        </div>
+        <div class="card">
+          <div class="icon">💬</div>
+          <h3>Prompt Claude (claude.ai)</h3>
+          <p style="font-style:italic; color:var(--accent-light); font-size:13px;">"Write me a reusable prompt template for writing customer emails in a friendly, non-technical tone."</p>
+          <p style="font-size:13px; margin-bottom:0;">Save Claude's output as a Knowledge file in your Project. It works like a skill — reference it by name in future chats.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🤖</div>
+          <h3>Prompt Claude Code</h3>
+          <p style="font-style:italic; color:var(--accent-light); font-size:13px;">"Create a skill called 'create-pr' that builds structured PR descriptions from the current branch and Jira ticket. Put it in .claude/skills/."</p>
+          <p style="font-size:13px; margin-bottom:0;">Claude Code scaffolds the folder and <code>SKILL.md</code> in your repo.</p>
+        </div>
+      </div>
+      <div class="analogy">
+        <div class="label">Key Point</div>
+        <p>You describe <strong>what</strong> the skill should do. The agent handles the <strong>how</strong> — file structure, formatting, and placement.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: Skill File Example -->
+  <div class="slide" data-index="8">
+    <div class="slide-content">
+      <div class="slide-label">Example</div>
+      <h2>What a Skill File Looks Like</h2>
+      <p>This is all it takes — a single markdown file with frontmatter and clear instructions.</p>
+      <div class="code-block">
+        <span class="lang-tag">SKILL.MD</span>
+<span class="comment">---</span>
+<span class="key">name:</span> <span class="string">add-feature-flag</span>
+<span class="key">description:</span> <span class="string">Add a new feature flag with proper config and docs</span>
+<span class="comment">---</span>
+
+<span class="heading"># Add Feature Flag</span>
+
+<span class="heading">## Instructions</span>
+1. Ask the user for the flag name and default value
+2. Add the definition to <span class="string">`config/feature_flags.yaml`</span>
+3. Create a helper function in <span class="string">`src/utils/flags.ts`</span>
+4. Update documentation in <span class="string">`docs/FEATURE_FLAGS.md`</span>
+
+<span class="heading">## Examples</span>
+- "Add a feature flag for the new checkout flow"
+- "Create a flag to enable dark mode for beta users"
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9: Without vs With -->
+  <div class="slide" data-index="9">
+    <div class="slide-content">
+      <div class="slide-label">Why It Matters</div>
+      <h2>The Difference Agents & Skills Make</h2>
+      <p>Without them, every AI interaction starts from zero. With them, your AI remembers, knows, and acts.</p>
+      <div class="compare">
+        <div class="compare-col bad">
+          <h3>❌ Without Agents + Skills</h3>
+          <ul>
+            <li>Re-explain context every conversation</li>
+            <li>Repeat preferences and constraints</li>
+            <li>Copy-paste outputs manually</li>
+            <li>Walk through steps one by one</li>
+            <li>AI advises but never executes</li>
+          </ul>
+        </div>
+        <div class="compare-col good">
+          <h3>✅ With Agents + Skills</h3>
+          <ul>
+            <li>Rules carry context automatically</li>
+            <li>Skills encode entire workflows</li>
+            <li>Agent reads, writes, and runs code</li>
+            <li>Complex tasks become one command</li>
+            <li>AI is a hands-on teammate</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 10: Tool Comparison -->
+  <div class="slide" data-index="10">
+    <div class="slide-content">
+      <div class="slide-label">Side by Side</div>
+      <h2>Warp vs Claude Ecosystem</h2>
+      <p>Same core concepts across all three. Skills in <code>.agents/skills/</code> work with <strong>both</strong> Warp and Claude Code.</p>
+      <div class="summary-grid">
+        <div class="summary-row header" style="grid-template-columns: 100px 1fr 1fr 1fr;">
+          <div></div>
+          <div>⚡ Warp (Oz)</div>
+          <div>💬 Claude (claude.ai)</div>
+          <div>🤖 Claude Code</div>
+        </div>
+        <div class="summary-row" style="grid-template-columns: 100px 1fr 1fr 1fr;">
+          <div class="concept" style="font-size:14px;">Rules</div>
+          <div class="desc">Warp Drive → Rules (global)<br/><code>AGENTS.md</code> (project)</div>
+          <div class="desc">Project Instructions<br/>Knowledge files</div>
+          <div class="desc"><code>~/.claude/CLAUDE.md</code> (global)<br/><code>CLAUDE.md</code> (project)</div>
+        </div>
+        <div class="summary-row" style="grid-template-columns: 100px 1fr 1fr 1fr;">
+          <div class="concept" style="font-size:14px;">Skills</div>
+          <div class="desc"><code>.agents/skills/</code><br/><code>.warp/skills/</code></div>
+          <div class="desc">Upload as knowledge files inside a Project</div>
+          <div class="desc"><code>.agents/skills/</code><br/><code>.claude/skills/</code></div>
+        </div>
+        <div class="summary-row" style="grid-template-columns: 100px 1fr 1fr 1fr;">
+          <div class="concept" style="font-size:14px;">Invoke</div>
+          <div class="desc">Natural language or <code>/skill-name</code></div>
+          <div class="desc">Natural language in chat</div>
+          <div class="desc">Natural language — auto-discovered</div>
+        </div>
+        <div class="summary-row" style="grid-template-columns: 100px 1fr 1fr 1fr;">
+          <div class="concept" style="font-size:14px;">Runs In</div>
+          <div class="desc">Warp terminal (local or cloud)</div>
+          <div class="desc">Browser at claude.ai</div>
+          <div class="desc">Any terminal via <code>claude</code> CLI</div>
+        </div>
+        <div class="summary-row" style="grid-template-columns: 100px 1fr 1fr 1fr;">
+          <div class="concept" style="font-size:14px;">Best For</div>
+          <div class="desc">Terminal workflows, git ops, script execution</div>
+          <div class="desc">Research, writing, analysis, brainstorming</div>
+          <div class="desc">Deep code edits, multi-file refactors, testing</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11: Quick Reference -->
+  <div class="slide" data-index="11">
+    <div class="slide-content">
+      <div class="slide-label">Reference</div>
+      <h2>Quick Reference</h2>
+      <div class="summary-grid">
+        <div class="summary-row header">
+          <div>Concept</div>
+          <div>What It Is</div>
+          <div>Where It Lives</div>
+        </div>
+        <div class="summary-row">
+          <div class="concept">Agent</div>
+          <div class="desc">AI that can take action — read, write, and run things in your environment.</div>
+          <div class="desc">Warp (Oz), Claude (claude.ai), or Claude Code.</div>
+        </div>
+        <div class="summary-row">
+          <div class="concept">Rules</div>
+          <div class="desc">Persistent behavior guidelines the agent always follows.</div>
+          <div class="desc"><code>AGENTS.md</code> / <code>CLAUDE.md</code> in repos, or Project Instructions on claude.ai.</div>
+        </div>
+        <div class="summary-row">
+          <div class="concept">Skills</div>
+          <div class="desc">Reusable step-by-step playbooks for specific tasks.</div>
+          <div class="desc"><code>.agents/skills/*/SKILL.md</code> for Warp & Claude Code; knowledge files for claude.ai.</div>
+        </div>
+      </div>
+      <div class="analogy" style="margin-top:28px;">
+        <div class="label">TL;DR</div>
+        <p><strong>Rules</strong> eliminate repetition. <strong>Skills</strong> encode expertise. <strong>Agents</strong> execute. The patterns are <strong>universal</strong> — learn them once, apply them in Warp, Claude, Claude Code, or any AI tool that supports them.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="kb-hint">Use <kbd>&larr;</kbd> <kbd>&rarr;</kbd> arrow keys to navigate</div>
+<div class="nav">
+  <button id="prevBtn" onclick="navigate(-1)" disabled>&larr;</button>
+  <div class="dots" id="dots"></div>
+  <span class="slide-counter" id="slideCounter">1 / 12</span>
+  <button id="nextBtn" onclick="navigate(1)">&rarr;</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  // Build dots
+  const dotsContainer = document.getElementById('dots');
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goTo(i);
+    dotsContainer.appendChild(dot);
+  }
+
+  function goTo(index) {
+    if (index < 0 || index >= total || index === current) return;
+    const direction = index > current ? 1 : -1;
+    const prev = current;
+
+    // Remove active from current slide and animate it out
+    slides[prev].classList.remove('active');
+    slides[prev].style.transform = direction > 0 ? 'translateX(-60px)' : 'translateX(60px)';
+    slides[prev].style.opacity = '0';
+
+    // Set up the new slide entrance
+    current = index;
+    slides[current].style.transition = 'none';
+    slides[current].style.transform = direction > 0 ? 'translateX(60px)' : 'translateX(-60px)';
+    slides[current].style.opacity = '0';
+
+    // Force reflow then animate in
+    void slides[current].offsetWidth;
+    slides[current].style.transition = '';
+    slides[current].classList.add('active');
+    slides[current].style.transform = '';
+    slides[current].style.opacity = '';
+
+    // Clean up previous slide
+    setTimeout(() => {
+      slides[prev].style.transform = '';
+      slides[prev].style.opacity = '';
+    }, 500);
+
+    updateUI();
+  }
+
+  function navigate(dir) {
+    goTo(current + dir);
+  }
+
+  function updateUI() {
+    document.getElementById('prevBtn').disabled = current === 0;
+    document.getElementById('nextBtn').disabled = current === total - 1;
+    document.getElementById('slideCounter').textContent = `${current + 1} / ${total}`;
+    document.getElementById('progressBar').style.width = `${((current + 1) / total) * 100}%`;
+
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') navigate(-1);
+  });
+
+  // Touch swipe support
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', (e) => {
+    const diff = touchStartX - e.changedTouches[0].screenX;
+    if (Math.abs(diff) > 50) navigate(diff > 0 ? 1 : -1);
+  });
+
+  updateUI();
+</script>
+
+</body>
+</html>
